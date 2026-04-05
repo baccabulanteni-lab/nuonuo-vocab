@@ -1,0 +1,7 @@
+{
+  "name": "糯糯单词",
+  "description": "记忆单词",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

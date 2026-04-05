@@ -1,0 +1,149 @@
+@import "tailwindcss";
+
+@theme {
+  /* 全部使用系统字体栈，运行时零外链请求（无 Google Fonts 等第三方 URL） */
+  --font-sans: ui-sans-serif, system-ui, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", "SimSun", "FangSong", "PMingLiU", Georgia, "Times New Roman", serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "Consolas", "PingFang SC", monospace;
+  --font-display: "Noto Serif SC", "Source Han Serif SC", "Songti SC", Georgia, serif;
+  
+  --color-parchment: #F9F9F7;
+  --color-ink: #2D2D2D;
+  --color-accent-orange: #FFB347;
+  --color-accent-green: #77DD77;
+  --color-accent-blue: #AEC6CF;
+  --color-muted-grey: #8E8E8E;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    @apply min-h-[100dvh] w-full m-0;
+  }
+  #root {
+    @apply flex flex-col;
+  }
+  body {
+    @apply bg-[#EBE9E0] text-ink font-sans antialiased selection:bg-ink/10;
+  }
+}
+
+.knowledge-scroll-card {
+  @apply bg-white rounded-none border-b border-black/5 transition-all active:bg-black/[0.02];
+}
+
+.knowledge-scroll-number {
+  @apply text-4xl font-bold text-ink/5 font-sans tracking-tighter;
+}
+
+.paper-texture {
+  /* 高级有机纤维感纸张：使用细微噪声 + 象牙白渐变 */
+  background-color: #faf6f0;
+  background-image: 
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.4), transparent),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+  box-shadow: inset 0 0 100px rgba(181, 131, 98, 0.03);
+}
+
+/* 词书「立书为约」：古法纸卷（优化质感，去颗粒感） */
+.covenant-scroll {
+  background-color: #f8f4e9;
+  background-image:
+    radial-gradient(ellipse 120% 80% at 50% -20%, rgba(255, 255, 255, 0.5), transparent 50%),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  box-shadow:
+    inset 0 0 0 1px rgba(139, 105, 20, 0.1),
+    inset 0 0 80px rgba(101, 67, 33, 0.04),
+    0 12px 40px rgba(45, 36, 24, 0.06);
+}
+
+.covenant-ink {
+  color: #2c261c;
+}
+
+@keyframes wax-press {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  40% {
+    transform: scale(0.96);
+    filter: brightness(0.92);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+.wax-seal-interactive:active:not(:disabled) {
+  animation: wax-press 0.35s ease-out;
+}
+
+/* 首页「词书库」：邮票/蜡封角标入口（无外链图） */
+.library-stamp {
+  background:
+    radial-gradient(circle at 28% 22%, rgba(255, 255, 255, 0.55), transparent 45%),
+    radial-gradient(circle at 70% 72%, rgba(0, 0, 0, 0.08), transparent 55%),
+    linear-gradient(145deg, #b58362, #9c6644);
+  box-shadow:
+    0 10px 24px rgba(45, 36, 24, 0.18),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+    inset 0 -10px 18px rgba(0, 0, 0, 0.12);
+}
+
+.library-stamp::before {
+  content: '';
+  position: absolute;
+  inset: 7px;
+  border-radius: 16px;
+  border: 1px dashed rgba(255, 255, 255, 0.38);
+  opacity: 0.95;
+  pointer-events: none;
+}
+
+.library-stamp::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.10);
+  pointer-events: none;
+}
+
+.library-stamp:active {
+  transform: translateY(1px) rotate(6deg) scale(0.98);
+}
+
+@keyframes fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.animate-fade-in { animation: fade-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+@keyframes scan { 0% { top: -150px; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+.animate-scan { animation: scan 2s linear infinite; }
+@keyframes slide-up { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+.animate-slide-up { animation: slide-up 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+
+/* Apple-style wheel picker simulation */
+.wheel-picker-container {
+  mask-image: linear-gradient(to bottom, transparent, black 40%, black 60%, transparent);
+}
+
+.sketch-x {
+  position: relative;
+  width: 20px;
+  height: 20px;
+}
+.sketch-x::before, .sketch-x::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  background: currentColor;
+  top: 50%;
+  left: 0;
+}
+.sketch-x::before { transform: rotate(45deg); }
+.sketch-x::after { transform: rotate(-45deg); }
+.logo-serif {
+  font-family: var(--font-serif);
+}
