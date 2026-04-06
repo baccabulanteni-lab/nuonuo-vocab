@@ -109,17 +109,15 @@ export async function login(username: string, password: string): Promise<AuthSes
   let licenseActivated = false;
   let activatedWithCode: string | undefined = undefined;
   
-  const { data: lic, error: licErr } = await supabase
-    .from('license_codes')
-    .select('id, code')
-    .eq('bound_profile_id', data.user.id)
-    .eq('status', 'used')
-    .limit(1)
+  const { data: profile, error: profileErr } = await supabase
+    .from('profiles')
+    .select('license_activated, activated_with_code')
+    .eq('id', data.user.id)
     .maybeSingle();
 
-  if (!licErr && lic) {
+  if (!profileErr && profile && profile.license_activated) {
     licenseActivated = true;
-    activatedWithCode = lic.code;
+    activatedWithCode = profile.activated_with_code;
   }
 
   const session: AuthSession = {
