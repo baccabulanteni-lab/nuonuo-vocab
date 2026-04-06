@@ -18,7 +18,7 @@ const supabaseAnonKeyFromEnv = (import.meta.env.VITE_SUPABASE_ANON_KEY as string
 const resolvedSupabaseUrl = supabaseUrlFromEnv || (
   typeof window !== 'undefined' && window.location.hostname === 'localhost' 
     ? window.location.origin + '/supabase'
-    : 'https://mddsftsfpukzgmwjqthtzyfsc.supabase.co' // 强制作为保底 URL
+    : 'https://mddsftsfpukzgmwjccxj.supabase.co' // 正确的保底 URL：使用用户实际的项目 ID
 );
 
 if (!supabaseAnonKeyFromEnv) {
