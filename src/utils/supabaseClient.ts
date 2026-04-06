@@ -13,11 +13,16 @@ const getCorrectUrl = () => {
 const supabaseUrlFromEnv = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim();
 const supabaseAnonKeyFromEnv = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)?.trim();
 
-const resolvedSupabaseUrl = supabaseUrlFromEnv || getCorrectUrl();
+// 核心修复：在线上环境必须使用真实的 Supabase URL。
+// 只有在本地开发且没配环境、且是在 localhost 时才尝试使用 /supabase 代理。
+const resolvedSupabaseUrl = supabaseUrlFromEnv || (
+  typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+    ? window.location.origin + '/supabase'
+    : 'https://mddsftsfpukzgmwjqthtzyfsc.supabase.co' // 强制作为保底 URL
+);
 
 if (!supabaseAnonKeyFromEnv) {
-  // 只在缺 env 时给出更明确的报错（便于你在部署环境中排查）。
-  throw new Error('[Supabase] 缺少 VITE_SUPABASE_ANON_KEY，请在 .env 配置后重启开发服务器。');
+  throw new Error('[Supabase] 缺少 VITE_SUPABASE_ANON_KEY，请在 Vercel Settings 中配置。');
 }
 
 export const supabase = createClient(resolvedSupabaseUrl, supabaseAnonKeyFromEnv);
