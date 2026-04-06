@@ -20,12 +20,20 @@
   body,
   #root {
     @apply min-h-[100dvh] w-full m-0;
+    overscroll-behavior: none; /* 防止页面橡皮筋回弹和下拉刷新 */
+    -webkit-touch-callout: none; /* 防止长按菜单 */
+    -webkit-user-select: none; /* 防止文本被划区选中 */
+    user-select: none;
   }
   #root {
     @apply flex flex-col;
   }
   body {
     @apply bg-[#EBE9E0] text-ink font-sans antialiased selection:bg-ink/10;
+  }
+  input, textarea {
+    -webkit-user-select: auto; /* 允许输入框正常聚焦和打字、选择文字 */
+    user-select: auto;
   }
 }
 
