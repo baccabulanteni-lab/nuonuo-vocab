@@ -129,7 +129,7 @@ export default function App() {
     if (uploadDebounceTimerRef.current) clearTimeout(uploadDebounceTimerRef.current);
     uploadDebounceTimerRef.current = setTimeout(() => {
       void flushUpload();
-    }, 2500);
+    }, 1200);
   };
 
   useEffect(() => {
@@ -326,8 +326,8 @@ export default function App() {
       }
     };
 
-    const saveTimer = window.setInterval(save, 20000); // 20s 推送一次
-    const pullTimer = window.setInterval(pull, 60000); // 60s 拉取一次
+    const saveTimer = window.setInterval(save, 10000); // 10s 推送一次
+    const pullTimer = window.setInterval(pull, 15000); // 15s 拉取一次
 
     const onVis = () => {
       if (document.visibilityState === 'hidden') save();
