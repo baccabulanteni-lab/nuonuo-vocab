@@ -112,7 +112,7 @@ export async function login(username: string, password: string): Promise<AuthSes
   const { data: lic, error: licErr } = await supabase
     .from('license_codes')
     .select('id, code')
-    .eq('bound_username', realUsername.toLowerCase())
+    .eq('bound_profile_id', data.user.id)
     .eq('status', 'used')
     .limit(1)
     .maybeSingle();
