@@ -623,7 +623,7 @@ export default function App() {
     <>
     <div 
       className={cn(
-        'flex w-full min-h-[100dvh] justify-center items-stretch md:items-center font-sans text-gray-800 transition-colors duration-500 overflow-x-hidden overflow-y-auto',
+        'flex w-full min-h-[100svh] justify-center items-stretch font-sans text-gray-800 overflow-x-hidden overflow-y-auto',
         isFullBleedTab ? getWrapperBg() : "bg-[#EBE9E0] p-0 md:p-4 lg:p-8"
       )}
       onTouchStart={handleTouchStart}
@@ -631,10 +631,10 @@ export default function App() {
       onTouchEnd={handleTouchEnd}
     >
       <div className={cn(
-        "w-full min-w-0 min-h-0 flex flex-col relative transition-all duration-500 overflow-hidden bg-white",
+        "w-full min-w-0 min-h-0 flex flex-col relative overflow-hidden bg-white",
         isFullBleedTab 
-          ? "h-[100dvh] md:max-w-none border-none shadow-none" 
-          : "md:max-w-5xl lg:max-w-6xl h-[100dvh] md:h-[92vh] md:rounded-[3rem] shadow-2xl border border-black/5",
+          ? "min-h-[100svh] md:max-w-none border-none shadow-none"
+          : "md:max-w-5xl lg:max-w-6xl min-h-[100svh] md:min-h-[100svh] md:rounded-[3rem] shadow-2xl border border-black/5",
         getWrapperBg()
       )}>
         {challengeToast && (
@@ -1192,7 +1192,7 @@ function HomeCover({
                 if (isScanDay) onSelect('vocabulary');
               }}
               className={cn(
-                "flex-1 p-6 sm:p-8 lg:p-[clamp(1.5rem,3vw,3rem)] relative transition-all duration-700 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] flex flex-col overflow-hidden rounded-[2.5rem] md:rounded-[3.5rem] border border-white/5",
+                "flex-1 p-6 sm:p-8 lg:p-[clamp(1.5rem,3vw,3rem)] relative shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] flex flex-col overflow-hidden rounded-[2.5rem] md:rounded-[3.5rem] border border-white/5",
                 !isFullyAuthed || isScanDay
                   ? "bg-[#2D3436] cursor-pointer hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.4)]"
                   : "bg-[#4a4540] cursor-not-allowed grayscale-[0.3]"
@@ -1258,7 +1258,7 @@ function HomeCover({
               </div>
 
               <div className={cn(
-                "absolute bottom-8 right-8 md:bottom-12 md:right-12 w-16 h-16 md:w-24 md:h-24 lg:w-28 lg:h-28 rounded-full flex items-center justify-center text-white transition-all duration-500",
+                "absolute bottom-8 right-8 md:bottom-12 md:right-12 w-16 h-16 md:w-24 md:h-24 lg:w-28 lg:h-28 rounded-full flex items-center justify-center text-white",
                 !isFullyAuthed || isScanDay
                   ? "bg-[#b58362] shadow-[0_0_50px_rgba(181,131,98,0.4)] group-hover:scale-110 group-hover:rotate-12"
                   : "bg-white/10"
@@ -1288,7 +1288,7 @@ function HomeCover({
                 if (hasReviewTask) onSelect('review');
               }}
               className={cn(
-                "group relative rounded-[2.5rem] p-5 sm:p-6 lg:p-[clamp(1rem,2.5vw,1.5rem)] flex flex-col justify-between overflow-hidden transition-all duration-500 shadow-lg border border-white/10",
+                "group relative rounded-[2.5rem] p-5 sm:p-6 lg:p-[clamp(1rem,2.5vw,1.5rem)] flex flex-col justify-between overflow-hidden shadow-lg border border-white/10",
                 "bg-gradient-to-br from-[#D57E5F] to-[#C36340] cursor-pointer hover:shadow-2xl hover:translate-y-[-4px]",
                 isFullyAuthed && !hasReviewTask && "opacity-90 saturate-[0.8]"
               )}
@@ -1310,7 +1310,7 @@ function HomeCover({
             {/* 02: Library */}
             <div 
               onClick={() => onSelect('library')}
-              className="group relative rounded-[2.5rem] p-5 sm:p-6 lg:p-[clamp(1rem,2.5vw,1.5rem)] flex flex-col justify-between overflow-hidden transition-all duration-500 shadow-lg border border-[#b58362]/20 bg-[#f9f7f4] cursor-pointer hover:shadow-2xl hover:translate-y-[-4px]"
+              className="group relative rounded-[2.5rem] p-5 sm:p-6 lg:p-[clamp(1rem,2.5vw,1.5rem)] flex flex-col justify-between overflow-hidden shadow-lg border border-[#b58362]/20 bg-[#f9f7f4] cursor-pointer hover:shadow-2xl hover:translate-y-[-4px]"
             >
               <div className="flex justify-between items-start relative z-10 opacity-30 group-hover:opacity-50 transition-opacity">
                 <span className="text-[9px] font-bold tracking-[0.2em] text-[#b58362] uppercase font-sans">Vocabulary Index</span>
@@ -1328,7 +1328,7 @@ function HomeCover({
             <div 
               onClick={() => onSelect('stats')}
               className={cn(
-                "group relative rounded-[2.5rem] p-5 sm:p-6 lg:p-[clamp(1rem,2.5vw,1.5rem)] flex flex-col justify-between overflow-hidden transition-all duration-500 shadow-lg border border-black/5 bg-white cursor-pointer hover:shadow-2xl hover:translate-y-[-4px]",
+                "group relative rounded-[2.5rem] p-5 sm:p-6 lg:p-[clamp(1rem,2.5vw,1.5rem)] flex flex-col justify-between overflow-hidden shadow-lg border border-black/5 bg-white cursor-pointer hover:shadow-2xl hover:translate-y-[-4px]",
                 "lg:col-span-2"
               )}
             >
