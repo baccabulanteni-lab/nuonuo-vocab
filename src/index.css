@@ -19,7 +19,10 @@
   html,
   body,
   #root {
-    @apply min-h-[100dvh] w-full m-0;
+    min-height: 100vh;
+    min-height: 100svh;
+    min-height: 100dvh;
+    @apply w-full m-0;
     overscroll-behavior: none; /* 防止页面橡皮筋回弹和下拉刷新 */
     -webkit-touch-callout: none; /* 防止长按菜单 */
     -webkit-user-select: none; /* 防止文本被划区选中 */
@@ -30,6 +33,12 @@
   }
   body {
     @apply bg-[#EBE9E0] text-ink font-sans antialiased selection:bg-ink/10;
+  }
+  html.app-booting body {
+    overflow: hidden;
+  }
+  html.app-booting #root {
+    opacity: 0;
   }
   input, textarea {
     -webkit-user-select: auto; /* 允许输入框正常聚焦和打字、选择文字 */

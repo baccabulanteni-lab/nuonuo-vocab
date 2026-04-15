@@ -2062,7 +2062,10 @@ export default function VocabularyModule({
                     </div>
                   );
                 }
-                const goal = plan.words;
+                const goal =
+                  book.dailyPlanWords === 150 || book.dailyPlanWords === 300 || book.dailyPlanWords === 1000
+                    ? book.dailyPlanWords
+                    : plan.words;
                 const scanned = clampTodayScannedWordCount(book.id, goal);
                 const progressSub =
                   goal > 0

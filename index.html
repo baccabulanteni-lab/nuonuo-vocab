@@ -6,6 +6,29 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <script>
+      (function () {
+        var doc = document.documentElement;
+        doc.classList.add('app-booting');
+        var bootReleased = false;
+
+        function tryRelease() {
+          if (bootReleased) return;
+          bootReleased = true;
+          requestAnimationFrame(function () {
+            requestAnimationFrame(function () {
+              doc.classList.remove('app-booting');
+            });
+          });
+        }
+
+        window.__nuonuoReleaseBoot = function () {
+          setTimeout(tryRelease, 120);
+        };
+        // 兜底：即使 React 未挂载成功也解除遮罩
+        setTimeout(tryRelease, 800);
+      })();
+    </script>
     <!-- Primary Meta Tags -->
     <title>糯糯背单词</title>
     <meta name="title" content="糯糯背单词" />
@@ -27,4 +50,3 @@
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-
