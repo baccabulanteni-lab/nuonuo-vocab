@@ -73,6 +73,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const pendingTabAfterAuthRef = useRef<Tab | null>(null);
+  const historyTabRef = useRef<Tab>('home');
+  const handlingBrowserBackRef = useRef(false);
 
   const [challengeResetKey, setChallengeResetKey] = useState(0);
   const [challengeToast, setChallengeToast] = useState<string | null>(null);
@@ -279,6 +281,16 @@ export default function App() {
     logout();
   }, []);
 
+  const requestHomeNavigation = useCallback(() => {
+    if (activeTab === 'home') return;
+    if (typeof window !== 'undefined' && historyTabRef.current !== 'home') {
+      handlingBrowserBackRef.current = true;
+      window.history.back();
+      return;
+    }
+    setActiveTab('home');
+  }, [activeTab]);
+
   useEffect(() => {
     if (!authSession || !authSession.user.licenseActivated) {
       setAuthReady(true);
@@ -286,6 +298,54 @@ export default function App() {
     }
     void handleAuthed(authSession);
   }, [authSession, handleAuthed]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const currentState =
+      window.history.state && typeof window.history.state === 'object' ? window.history.state : {};
+
+    if (activeTab === 'home') {
+      if (handlingBrowserBackRef.current) {
+        handlingBrowserBackRef.current = false;
+      } else {
+        window.history.replaceState({ ...currentState, nuonuoTab: 'home' }, '');
+      }
+      historyTabRef.current = 'home';
+      return;
+    }
+
+    if (historyTabRef.current === 'home') {
+      window.history.pushState({ ...currentState, nuonuoTab: activeTab }, '');
+    } else {
+      window.history.replaceState({ ...currentState, nuonuoTab: activeTab }, '');
+    }
+    historyTabRef.current = activeTab;
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const onPopState = () => {
+      if (authModalOpen) {
+        setAuthModalOpen(false);
+        pendingTabAfterAuthRef.current = null;
+        return;
+      }
+      if (profileOpen) {
+        setProfileOpen(false);
+        return;
+      }
+      if (activeTab !== 'home') {
+        handlingBrowserBackRef.current = true;
+        setActiveTab('home');
+        return;
+      }
+    };
+
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [activeTab, authModalOpen, profileOpen]);
 
   useEffect(() => {
     if (!authSession || !authReady || !authSession.user.licenseActivated) return;
@@ -834,7 +894,7 @@ export default function App() {
                     type="button"
                     onClick={() => {
                       setProfileOpen(false);
-                      setActiveTab('home');
+                      requestHomeNavigation();
                     }}
                     className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-[#b58362] text-white text-[13px] font-bold hover:bg-[#a67556] transition-all"
                   >
@@ -859,7 +919,7 @@ export default function App() {
         {activeTab !== 'home' && fullyAuthed && (
           <div className="h-14 md:h-16 flex items-center justify-between px-4 md:px-6 shrink-0 z-20 bg-inherit border-b border-black/5 md:border-none">
             <button 
-              onClick={() => setActiveTab('home')} 
+              onClick={requestHomeNavigation} 
               className="w-10 h-10 md:w-11 md:h-11 flex items-center justify-center rounded-2xl bg-white/40 backdrop-blur-md border border-black/5 hover:scale-105 transition-all shadow-sm group"
             >
               <ChevronLeft size={22} className="text-[#8c8881] group-hover:text-[#b58362]" />
@@ -920,7 +980,7 @@ export default function App() {
                 accent={pronunciationAccent}
                 audioEnabled={audioEnabled}
                 audioRepeatMode={audioRepeatMode}
-                onRequestHome={() => setActiveTab('home')}
+                onRequestHome={requestHomeNavigation}
               />
             </div>
           )}
@@ -933,7 +993,7 @@ export default function App() {
                 accent={pronunciationAccent}
                 audioEnabled={audioEnabled}
                 audioRepeatMode={audioRepeatMode}
-                onRequestHome={() => setActiveTab('home')}
+                onRequestHome={requestHomeNavigation}
               />
             </div>
           )}
@@ -946,7 +1006,7 @@ export default function App() {
                 accent={pronunciationAccent}
                 audioEnabled={audioEnabled}
                 audioRepeatMode={audioRepeatMode}
-                onRequestHome={() => setActiveTab('home')}
+                onRequestHome={requestHomeNavigation}
               />
             </div>
           )}
@@ -958,7 +1018,7 @@ export default function App() {
                 accent={pronunciationAccent}
                 audioEnabled={audioEnabled}
                 audioRepeatMode={audioRepeatMode}
-                onRequestHome={() => setActiveTab('home')}
+                onRequestHome={requestHomeNavigation}
               />
             </div>
           )}

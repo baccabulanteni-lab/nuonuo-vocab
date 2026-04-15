@@ -516,6 +516,8 @@ export default function VocabularyModule({
   const [isStorageReady, setIsStorageReady] = useState(false);
   const [focusBooks, setFocusBooks] = useState<FocusBookRow[]>([]);
   const [plan, setPlan] = useState({ time: 30, words: 150, day: 1 });
+  const [reviewTargetWordIds, setReviewTargetWordIds] = useState<Set<string> | null>(null);
+  const [reviewBatchHint, setReviewBatchHint] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadStorage() {
@@ -724,6 +726,76 @@ export default function VocabularyModule({
     }
   }, [focusBooks[0]?.id, focusBooks[0]?.dailyPlanWords]);
 
+  useEffect(() => {
+    if (activeMode !== 'review') {
+      setReviewTargetWordIds(null);
+      setReviewBatchHint(null);
+      return;
+    }
+
+    const book = focusBooks[0];
+    if (!book?.id) {
+      setReviewTargetWordIds(new Set());
+      setReviewBatchHint(null);
+      return;
+    }
+
+    const daily =
+      book.dailyPlanWords === 150 || book.dailyPlanWords === 300 || book.dailyPlanWords === 1000
+        ? book.dailyPlanWords
+        : plan.words;
+    if (daily !== 150 && daily !== 300 && daily !== 1000) {
+      setReviewTargetWordIds(new Set());
+      setReviewBatchHint(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadReviewTargets = async () => {
+      try {
+        const raw = await loadRawCorpusForBook(book);
+        if (cancelled) return;
+
+        const pass = getEffectiveStudyPass(book);
+        const queue = buildStudyQueueForPass(raw, book.words, pass, book.id);
+        const cursor = getStudyCursor(book.id);
+        const lastLearnedBatchIndex = Math.max(0, Math.floor((Math.max(cursor, 1) - 1) / daily));
+
+        let batchIndexes: number[] = [];
+        if (currentDay === 2) {
+          batchIndexes = [lastLearnedBatchIndex % 2 === 0 ? lastLearnedBatchIndex : Math.max(0, lastLearnedBatchIndex - 1)];
+        } else if (currentDay === 4) {
+          batchIndexes = [lastLearnedBatchIndex % 2 === 1 ? lastLearnedBatchIndex : Math.max(0, lastLearnedBatchIndex - 1)];
+        } else if (currentDay === 5) {
+          const nodeBase = Math.floor(lastLearnedBatchIndex / 2) * 2;
+          batchIndexes = [nodeBase, nodeBase + 1];
+        }
+
+        const ids = new Set<string>();
+        for (const batchIndex of batchIndexes) {
+          const start = batchIndex * daily;
+          const slice = queue.slice(start, start + daily);
+          for (const item of slice) ids.add(item.id);
+        }
+        setReviewTargetWordIds(ids);
+        const batchLabel = (bi: number) => `${bi}（${bi % 2 === 0 ? 'A 槽·Day1' : 'B 槽·Day3'}）`;
+        const batchesText = batchIndexes.length ? batchIndexes.map(batchLabel).join(' + ') : '—';
+        setReviewBatchHint(`第 ${pass} 轮 · 批次 ${batchesText} · ${daily} 词/批 · 本次 ${ids.size} 词`);
+      } catch {
+        if (!cancelled) {
+          setReviewTargetWordIds(new Set());
+          setReviewBatchHint(null);
+        }
+      }
+    };
+
+    void loadReviewTargets();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeMode, currentDay, focusBooks, plan.words]);
+
   // Filter words based on day and mode
   useEffect(() => {
     // 默写 / 词书库 / 统计 不走扫词画布：切勿把 focusBooks.words 写入 vocabList，
@@ -779,12 +851,17 @@ export default function VocabularyModule({
       return;
     }
 
-    let baseList = focusBooks[0]?.words || [];
+    const baseList = focusBooks[0]?.words || [];
     let filtered = [...baseList];
     
     if (activeMode === 'scan') {
       filtered = filtered.filter(w => w.addedOn === `Day ${currentDay}`);
     } else if (activeMode === 'review') {
+      // 优先使用“本循环日应复习的批次 id 集合”，避免 Day 标签在不同轮次/Part 之间复用导致混批。
+      // reviewTargetWordIds 由 buildStudyQueueForPass + 游标切片得出，天然与当前轮次(pass)对齐。
+      if (reviewTargetWordIds) {
+        filtered = filtered.filter((w) => reviewTargetWordIds.has(w.id));
+      } else {
       if (currentDay === 1 || currentDay === 3) {
         filtered = [];
       } else if (currentDay === 2) {
@@ -795,6 +872,7 @@ export default function VocabularyModule({
         filtered = filtered.filter(w => w.addedOn === 'Day 1' || w.addedOn === 'Day 3');
       } else {
         filtered = [];
+      }
       }
       // 循环复习仅回看「未全熟」：全熟（familiar_100）不再出现
       filtered = filtered.filter((w) => (w.status ?? 'new') !== 'familiar_100');
@@ -815,7 +893,7 @@ export default function VocabularyModule({
     } else {
       setCurrentIndex(0);
     }
-  }, [currentDay, activeMode, focusBooks, corpusBatch, viewState]);
+  }, [currentDay, activeMode, focusBooks, corpusBatch, viewState, reviewTargetWordIds]);
 
   /** corpus 已就绪但 vocabList 未同步时（Strict/竞态/addedOn 曾异常）立即补全，避免「有进度无单词」 */
   useLayoutEffect(() => {
@@ -3223,6 +3301,11 @@ export default function VocabularyModule({
               )}
             </button>
           </div>
+          {activeMode === 'review' && reviewBatchHint && (
+            <div className="text-[8px] md:text-[9px] text-[#8c8881] bg-white/60 backdrop-blur-sm px-3 py-1.5 rounded-xl border border-[#fae5d3]/70 shadow-sm text-right leading-snug">
+              {reviewBatchHint}
+            </div>
+          )}
           {activeMode === 'scan' &&
             viewState === 'scanning' &&
             !scanCorpusPending &&
