@@ -162,7 +162,7 @@ export const GESTURE_TEMPLATES = [
     }), NUM_POINTS)
   },
 
-  // Underlines
+  // Underlines — 只保留真正水平/略斜的横线，不要有弯折
   {
     name: "underline", // Standard L-to-R
     points: resample([{ x: 0, y: 0 }, { x: 200, y: 0 }], NUM_POINTS)
@@ -172,27 +172,43 @@ export const GESTURE_TEMPLATES = [
     points: resample([{ x: 200, y: 0 }, { x: 0, y: 0 }], NUM_POINTS)
   },
   {
-    name: "underline", // Slightly curved up
+    name: "underline", // 略向右下斜（最常见手写横线）
+    points: resample([{ x: 0, y: 0 }, { x: 200, y: 25 }], NUM_POINTS)
+  },
+  {
+    name: "underline", // 略向右上斜
+    points: resample([{ x: 0, y: 0 }, { x: 200, y: -25 }], NUM_POINTS)
+  },
+  {
+    name: "underline", // 微弧向下
     points: resample([{ x: 0, y: 0 }, { x: 100, y: 20 }, { x: 200, y: 0 }], NUM_POINTS)
   },
   {
-    name: "underline", // Slightly curved down
+    name: "underline", // 微弧向上
     points: resample([{ x: 0, y: 0 }, { x: 100, y: -20 }, { x: 200, y: 0 }], NUM_POINTS)
   },
 
-  // Checkmarks
+  // Checkmarks — 必须有明显的「先下折、后右上扬」折线特征，与横线区别拉大
   {
-    name: "checkmark", // Standard
-    points: resample([{ x: 0, y: 0 }, { x: 50, y: 50 }, { x: 150, y: -50 }], NUM_POINTS)
+    name: "checkmark", // 标准 √：左上→右下→右上，折角明显
+    points: resample([{ x: 0, y: 0 }, { x: 50, y: 80 }, { x: 180, y: -30 }], NUM_POINTS)
   },
   {
-    name: "checkmark", // Sharp
-    points: resample([{ x: 0, y: 0 }, { x: 30, y: 80 }, { x: 120, y: -20 }], NUM_POINTS)
+    name: "checkmark", // 较短的勾，右侧上扬更陡
+    points: resample([{ x: 0, y: 0 }, { x: 35, y: 90 }, { x: 130, y: -10 }], NUM_POINTS)
   },
   {
-    name: "checkmark", // Curved
-    points: resample([{ x: 0, y: 0 }, { x: 40, y: 40 }, { x: 60, y: 40 }, { x: 160, y: -60 }], NUM_POINTS)
-  }
+    name: "checkmark", // 圆润版，带平滑过渡
+    points: resample([{ x: 0, y: 0 }, { x: 30, y: 50 }, { x: 60, y: 80 }, { x: 100, y: 40 }, { x: 180, y: -40 }], NUM_POINTS)
+  },
+  {
+    name: "checkmark", // 粗勾（折点靠右）
+    points: resample([{ x: 0, y: 10 }, { x: 60, y: 100 }, { x: 200, y: -20 }], NUM_POINTS)
+  },
+  {
+    name: "checkmark", // 反方向勾（右→中→左上）
+    points: resample([{ x: 180, y: -30 }, { x: 50, y: 80 }, { x: 0, y: 0 }], NUM_POINTS)
+  },
 ].map(t => ({
   ...t,
   points: translateTo(scaleTo(t.points, SQUARE_SIZE), ORIGIN)

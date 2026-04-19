@@ -46,9 +46,20 @@ export function clampTodayScannedWordCount(bookId: string, dailyPlanWords: numbe
   if (!bookId || limit <= 0) return 0;
   const dk = getBeijingDateKey();
   const map = safeJsonParse<ScanMap>(localStorage.getItem(STORAGE_KEY), {});
-  const raw = map[dk]?.[bookId] ?? 0;
+  let raw = map[dk]?.[bookId] ?? 0;
+
+  // 数据自愈修复（兜底）：如果在挑战记录里今日已经通关了，但扫词批次却因为旧 Bug 被 clamp 成了 0，
+  // 我们在这里直接强行补齐到满额，这样用户的界面上就能马上恢复“今日已扫完”状态。
+  const challengeMap = safeJsonParse<Record<string, { completedOnDate?: string }>>(
+    localStorage.getItem('vocab_daily_challenge'),
+    {}
+  );
+  if (challengeMap[bookId]?.completedOnDate === dk && raw < limit) {
+    raw = limit;
+  }
+
   const clamped = Math.min(Math.max(0, raw), limit);
-  if (raw !== clamped && map[dk]) {
+  if ((raw !== clamped || !map[dk] || map[dk][bookId] !== clamped) && map[dk]) {
     map[dk][bookId] = clamped;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(map));

@@ -1583,6 +1583,30 @@ export default function VocabularyModule({
   const onGestureMarkRef = useRef<(status: WordStatus) => void>(() => {});
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Auto-pause track refs
+  const lastReviewInteractionRef = useRef<number>(Date.now());
+  const activeModeTrackRef = useRef<ModuleMode | null>(null);
+
+  useEffect(() => {
+    activeModeTrackRef.current = activeMode as ModuleMode;
+    lastReviewInteractionRef.current = Date.now();
+  }, [activeMode]);
+
+  useEffect(() => {
+    const handleInteraction = () => {
+      lastReviewInteractionRef.current = Date.now();
+    };
+    document.addEventListener('pointerdown', handleInteraction, { passive: true });
+    document.addEventListener('pointermove', handleInteraction, { passive: true });
+    // Touch events as fallback
+    document.addEventListener('touchstart', handleInteraction, { passive: true });
+    return () => {
+      document.removeEventListener('pointerdown', handleInteraction);
+      document.removeEventListener('pointermove', handleInteraction);
+      document.removeEventListener('touchstart', handleInteraction);
+    };
+  }, []);
+
   useEffect(() => {
     localStorage.setItem('vocab_stats', JSON.stringify(stats));
     dispatchVocabStatsUpdated();
@@ -1787,6 +1811,19 @@ export default function VocabularyModule({
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
         if (isPausedRef.current) return prev;
+
+        // 长时间无交互自动暂停（仅在复习模式下，15秒无任何交互则视作摸鱼）
+        if (activeModeTrackRef.current === 'review') {
+          if (Date.now() - lastReviewInteractionRef.current > 15000) {
+            setIsPaused(true);
+            isPausedRef.current = true;
+            setFeedback('长时间无书写，已自动暂停');
+            setTimeout(() => setFeedback(null), 3000);
+            cancelEnglishSpeech();
+            return prev;
+          }
+        }
+
         if (prev <= 0.05) {
           clearInterval(timerRef.current!);
           handleWordCompletion();
@@ -1896,6 +1933,12 @@ export default function VocabularyModule({
           studyCursorBefore: getStudyCursor(fb.id),
           bookWordCountEstimate: fb.count,
         });
+        // 保底：在异步加载词书前先落盘 cursor 和今日通关状态
+        // （防止 await 期间用户返回时 cursor 仍是旧值、或「今日已完成」判断失效，导致从第1词重来）
+        setStudyCursor(fb.id, patch.nextStudyCursor);
+        recordTodayScanBatchCompleted(fb.id, vocabList.length);
+        clampTodayScannedWordCount(fb.id, plan.words);
+        markPlanBatchChallengeCompletedIfNeeded(fb.id);
         void (async () => {
           try {
             const mergedWords = patch.mergedWords;
@@ -1955,7 +1998,8 @@ export default function VocabularyModule({
             setCustomBooks((prev) => prev.map(progPatch));
           }
           recordTodayScanBatchCompleted(fb.id, vocabList.length);
-          clampTodayScannedWordCount(fb.id, plan.words);
+          const fbGoal = fb.dailyPlanWords === 150 || fb.dailyPlanWords === 300 || fb.dailyPlanWords === 1000 ? fb.dailyPlanWords : plan.words;
+          clampTodayScannedWordCount(fb.id, fbGoal);
           markPlanBatchChallengeCompletedIfNeeded(fb.id);
           setScanFinishedReason('batch');
           setFinishedScanSummary({ ...scanSessionOutcomeRef.current });

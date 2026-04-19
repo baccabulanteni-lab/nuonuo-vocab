@@ -153,6 +153,12 @@ export function useScanGestureCanvas({
     const THRESHOLD = 0.65;
     const mark = (s: WordStatus) => onGestureMarkRef.current(s);
 
+    // 计算路径中点 y 坐标（用于判断勾形的「先下后上」特征）
+    const midPt = points.current[Math.floor(points.current.length / 2)];
+    const midY = midPt?.y ?? (minY + maxY) / 2;
+    // 勾的特征：路径中段比终点低（先折下再上扬）
+    const checkmarkMidDip = midY - end.y; // 正值 = 中段比终点低，勾形特征
+
     if (result.score > THRESHOLD) {
       if (result.name === 'circle') {
         // 约定：画圈 = 生词（判定闭合度与宽高比）
@@ -160,22 +166,24 @@ export function useScanGestureCanvas({
           mark('new');
         }
       } else if (result.name === 'checkmark') {
-        // 模板可能同时贴近「勾」与「横线」。
-        // 七分熟横划：宽扁 + 笔迹仍较直；允许手写自然「略向下斜」的横线（不能用过严的 |Δy|，否则会误判成全熟）。
-        // 全熟弧形勾：path 明显长于弦长（straightness 偏低）或整体呈勾形，不归入横划。
-        const looksLikeCheckmark = height > 10 && width > 10;
+        // ⚠️ checkmark 模板与横线容易混淆，需要几何二次过滤：
+        // 「横线」特征：宽扁、直线度高、终点不明显高于起点
+        // 「勾」特征：有明显的「先下折后右上扬」，终点比中段高（checkmarkMidDip > 0）
         const ySpan = Math.abs(start.y - end.y);
-        const underlineYtol = Math.max(20, width * 0.22, height * 0.85);
-        const isStrictHorizontalUnderline =
+        const underlineYtol = Math.max(20, width * 0.25, height * 0.9);
+        // 横线判断：放宽直线度（0.72）和高度容差（60），允许略斜的自然横划
+        const isHorizontalUnderline =
           width > 28 &&
-          height < 44 &&
-          width > height * 1.5 &&
-          straightness > 0.82 &&
+          height < 60 &&
+          width > height * 1.3 &&
+          straightness > 0.72 &&
           ySpan < underlineYtol;
+        // 勾的强制条件：终点必须明显比路径中段高（先折下再上扬）
+        const hasCheckmarkUpturn = checkmarkMidDip > Math.max(8, height * 0.2);
 
-        if (isStrictHorizontalUnderline) {
+        if (isHorizontalUnderline) {
           mark('familiar_70');
-        } else if (looksLikeCheckmark) {
+        } else if (hasCheckmarkUpturn && height > 10 && width > 10) {
           mark('familiar_100');
         }
       } else if (result.name === 'underline') {
@@ -187,16 +195,17 @@ export function useScanGestureCanvas({
       if (isClosed && width > 15 && height > 15) {
         mark('new');
       } else if (width > 35 && height < width * 0.8) {
-        // 低置信：略斜横划仍可七分熟；仅挺直度明显不够（弧/U）时倾向全熟
+        // 低置信：略斜横划仍可七分熟；要求终点上扬特征才认定全熟（防止横线误判）
         const ySp = Math.abs(start.y - end.y);
-        const yTol = Math.max(20, width * 0.22, height * 0.85);
-        if (straightness > 0.82 && height < 48 && width > height * 1.4 && ySp < yTol) {
+        const yTol = Math.max(20, width * 0.25, height * 0.9);
+        if (straightness > 0.72 && height < 60 && width > height * 1.3 && ySp < yTol) {
           mark('familiar_70');
-        } else if (end.y < start.y - 4 || straightness < 0.76) {
+        } else if (checkmarkMidDip > Math.max(8, height * 0.2) || straightness < 0.72) {
+          // 勾的「先下后上」特征或明显弯曲 = 全熟
           mark('familiar_100');
         }
-      } else if (height > 30 && width > 15 && end.y < start.y) {
-        // 符合勾的末笔特征（上扬） = 全熟
+      } else if (height > 30 && width > 15 && checkmarkMidDip > Math.max(8, height * 0.2)) {
+        // 中段明显低于终点（勾形） = 全熟
         mark('familiar_100');
       }
     }
