@@ -309,6 +309,35 @@ export function applyProgressToLocal(remotePayload: Record<string, string | null
             merged[key] = Math.max(localObj[key], remoteObj[key]);
           }
         }
+        if (localObj.history && remoteObj.history) {
+            merged.history = { ...localObj.history, ...remoteObj.history };
+            for (const dk in merged.history) {
+               if (localObj.history[dk] && remoteObj.history[dk]) {
+                  const lDay = localObj.history[dk];
+                  const rDay = remoteObj.history[dk];
+                  merged.history[dk] = { ...lDay, ...rDay };
+                  for (const sk in merged.history[dk]) {
+                      if (typeof lDay[sk] === 'number' && typeof rDay[sk] === 'number') {
+                          merged.history[dk][sk] = Math.max(lDay[sk], rDay[sk]);
+                      }
+                  }
+               }
+            }
+        }
+        localStorage.setItem(k, JSON.stringify(merged));
+        continue;
+      } catch {}
+    } else if (
+      k === 'vocab_book_study_cursor' ||
+      k === 'vocab_daily_challenge' ||
+      k === 'vocab_scan_resume_snapshot' ||
+      k === 'vocab_today_scan_batches' ||
+      k === 'vocab_cycle_review_session'
+    ) {
+      try {
+        const localObj = JSON.parse(localVal);
+        const remoteObj = JSON.parse(remoteVal);
+        const merged = { ...localObj, ...remoteObj };
         localStorage.setItem(k, JSON.stringify(merged));
         continue;
       } catch {}

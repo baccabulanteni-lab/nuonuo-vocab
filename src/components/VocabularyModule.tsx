@@ -1181,8 +1181,13 @@ export default function VocabularyModule({
     hasBuiltInVocabFile(selectedBookForAction.id) &&
     !(remoteWordList && remoteWordListBookId === selectedBookForAction.id);
 
+  const isInitialFocusMount = useRef(true);
   useEffect(() => {
     if (!isStorageReady) return;
+    if (isInitialFocusMount.current) {
+      isInitialFocusMount.current = false;
+      return;
+    }
     localStorage.setItem('vocab_focus_books', JSON.stringify(focusBooks));
     dispatchVocabStatsUpdated();
   }, [focusBooks, isStorageReady]);
@@ -1231,7 +1236,12 @@ export default function VocabularyModule({
     return () => window.removeEventListener(VOCAB_STATS_UPDATED_EVENT, handleExternalSync);
   }, [stats, plan, focusBooks, collectionBooks, customBooks]);
 
+  const isInitialCollMount = useRef(true);
   useEffect(() => {
+    if (isInitialCollMount.current) {
+      isInitialCollMount.current = false;
+      return;
+    }
     localStorage.setItem('vocab_collection_books', JSON.stringify(collectionBooks));
     dispatchVocabStatsUpdated();
   }, [collectionBooks]);
@@ -1607,12 +1617,22 @@ export default function VocabularyModule({
     };
   }, []);
 
+  const isInitialStatsMount = useRef(true);
   useEffect(() => {
+    if (isInitialStatsMount.current) {
+      isInitialStatsMount.current = false;
+      return;
+    }
     localStorage.setItem('vocab_stats', JSON.stringify(stats));
     dispatchVocabStatsUpdated();
   }, [stats]);
 
+  const isInitialPlanMount = useRef(true);
   useEffect(() => {
+    if (isInitialPlanMount.current) {
+      isInitialPlanMount.current = false;
+      return;
+    }
     localStorage.setItem('vocab_plan', JSON.stringify(plan));
   }, [plan]);
 

@@ -12,6 +12,8 @@ export const VOCAB_BACKUP_STORAGE_KEYS = [
   STUDY_CURSOR_STORAGE_KEY,
   'vocab_daily_challenge',
   SCAN_RESUME_STORAGE_KEY,
+  'vocab_today_scan_batches',
+  'vocab_cycle_review_session',
 ] as const;
 
 export type VocabBackupPayload = {
