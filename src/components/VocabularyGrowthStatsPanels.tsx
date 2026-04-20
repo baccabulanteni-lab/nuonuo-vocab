@@ -468,6 +468,11 @@ export function LearningStatsOverview({ stats, history }: LearningStatsOverviewP
   const active182 = useMemo(() => countActiveDaysInWindow(todayKey, history, 182), [todayKey, history]);
   const studySec = useMemo(() => sumStudySeconds(history), [history]);
   const todayWordsMarked = useMemo(() => dailyMarkedWordCount(history[todayKey]), [todayKey, history]);
+  const todayStudySec = useMemo(() => {
+    const h = history[todayKey] as DayHistoryRow | undefined;
+    if (!h || typeof h.studyTime !== 'number') return 0;
+    return h.studyTime;
+  }, [todayKey, history]);
 
   const n = Math.max(0, stats.new ?? 0);
   const f70 = Math.max(0, stats.familiar_70 ?? 0);
@@ -486,7 +491,7 @@ export function LearningStatsOverview({ stats, history }: LearningStatsOverviewP
         </p>
       </header>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
         <StatMiniCard title="连续打卡" foot="自然日 · 有记词或专注计时">
           <div className="text-[1.85rem] md:text-[2.15rem] font-serif font-bold text-[#1f1c18] tabular-nums leading-none tracking-tight">
             {streak}
@@ -495,6 +500,11 @@ export function LearningStatsOverview({ stats, history }: LearningStatsOverviewP
         <StatMiniCard title="今日学习量" foot="扫词记一词或复习过完一词各计一次">
           <div className="text-[1.85rem] md:text-[2.15rem] font-serif font-bold text-[#1f1c18] tabular-nums leading-none tracking-tight">
             {todayWordsMarked}
+          </div>
+        </StatMiniCard>
+        <StatMiniCard title="今日专注" foot="今日扫词及复习界面的累计停留时长">
+          <div className="text-[1.35rem] md:text-[1.55rem] font-serif font-bold text-[#1f1c18] leading-snug tracking-tight">
+            {formatStudyDuration(todayStudySec)}
           </div>
         </StatMiniCard>
         <StatMiniCard title="半年活跃" foot="近 6 个月内有学习记录的天数">
