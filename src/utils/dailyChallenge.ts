@@ -166,6 +166,21 @@ export type RolloverResult =
  *
  * 「今天」已通关且开始日在今天之前：不重复触发 rollover（completedOnDate >= today）。
  */
+/** 从 vocab_stats.history 读取指定日期已判定词数（new + 七分熟 + 全熟之和），用于第三道兜底校验 */
+function getStatsDayWordCount(dateKey: string): number {
+  if (typeof localStorage === 'undefined' || !dateKey) return 0;
+  try {
+    const s = safeJsonParse<{
+      history?: Record<string, { new?: number; familiar_70?: number; familiar_100?: number }>;
+    } | null>(localStorage.getItem('vocab_stats'), null);
+    const d = s?.history?.[dateKey];
+    if (!d || typeof d !== 'object') return 0;
+    return (Number(d.new) || 0) + (Number(d.familiar_70) || 0) + (Number(d.familiar_100) || 0);
+  } catch {
+    return 0;
+  }
+}
+
 export function checkCalendarRollover(bookId: string | null): RolloverResult {
   if (!bookId || !primaryBookHasDailyPlan()) return { type: 'none' };
   const t = todayKey();
@@ -190,9 +205,26 @@ export function checkCalendarRollover(bookId: string | null): RolloverResult {
     if (planWords > 0 && scannedOnStartedDate >= planWords) {
       return { type: 'newDayAfterSuccess', bookId };
     }
+    // 第三道兜底：学习统计（vocab_stats.history）中当日已判定词数 >= 计划词数 80%，阻止误清数据
+    const statsCount = planWords > 0 ? getStatsDayWordCount(cur.startedDate) : 0;
+    if (planWords > 0 && statsCount >= planWords * 0.8) {
+      console.warn('[DailyChallenge] vocab_stats 兜底触发：统计数据显示昨日已完成学习，阻止错误清零', {
+        statsCount, planWords, startedDate: cur.startedDate,
+      });
+      return { type: 'newDayAfterSuccess', bookId };
+    }
     return { type: 'failure', bookId };
   }
   if (cur.completedOnDate < cur.startedDate) {
+    // completedOnDate 异常时同样 check 统计数据，避免极端 Bug 场景下的误清
+    const pw = getDailyPlanWordsForBook(bookId);
+    const statsCount2 = pw > 0 ? getStatsDayWordCount(cur.startedDate) : 0;
+    if (pw > 0 && statsCount2 >= pw * 0.8) {
+      console.warn('[DailyChallenge] vocab_stats 兜底触发（completedOnDate 异常）：统计显示已完成', {
+        statsCount2, pw, startedDate: cur.startedDate,
+      });
+      return { type: 'newDayAfterSuccess', bookId };
+    }
     return { type: 'failure', bookId };
   }
   if (cur.completedOnDate >= t) {

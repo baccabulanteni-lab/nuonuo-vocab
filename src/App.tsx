@@ -56,8 +56,8 @@ import {
   getSavedSession,
   logout,
   snapshotLocalProgress,
+  snapshotLocalProgressAsync,
   applyProgressToLocal,
-  saveCloudProgress,
   loadCloudProgress,
   cloudProgressPayloadHasNonDayData,
   type AuthSession,
@@ -113,7 +113,9 @@ export default function App() {
   const flushUpload = async () => {
     const s = authSessionRef.current;
     if (!s || !authReadyRef.current || !s.user.licenseActivated) return;
-    const snap = snapshotLocalProgress();
+    
+    // 异步采集包含 IndexedDB 的完整快照
+    const snap = await snapshotLocalProgressAsync();
     const fp = computeLocalVocabFingerprint(snap);
     if (fp === lastUploadedFingerprintRef.current) return;
 
@@ -203,13 +205,13 @@ export default function App() {
         void (async () => {
           try {
             const cloudRes = await loadCloudProgress(session.token);
-            const localSnap = snapshotLocalProgress();
-            const localHasData = cloudProgressPayloadHasNonDayData(localSnap);
-
             if (cloudRes && cloudProgressPayloadHasNonDayData(cloudRes.payload)) {
               console.log('[Sync] 云端发现进度，正在应用到本地...');
-              applyProgressToLocal(cloudRes.payload, cloudRes.updatedAt);
-              lastUploadedFingerprintRef.current = computeLocalVocabFingerprint(snapshotLocalProgress());
+              await applyProgressToLocal(cloudRes.payload, cloudRes.updatedAt);
+              
+              const finalSnap = await snapshotLocalProgressAsync();
+              lastUploadedFingerprintRef.current = computeLocalVocabFingerprint(finalSnap);
+              
               refreshStatesFromStorage();
               dispatchVocabStatsUpdated();
               window.dispatchEvent(new Event(DAILY_CHALLENGE_EVENT));
@@ -227,7 +229,8 @@ export default function App() {
               console.log('[Sync] 云端和本地均无有效进度。');
               setSyncStatus('synced');
             }
-          } catch {
+          } catch (e) {
+            console.error('[Sync] handleAuthed 捕获异常:', e);
             setSyncStatus('error');
           }
           setHomeStatsTick((t) => t + 1);
@@ -350,8 +353,8 @@ export default function App() {
   useEffect(() => {
     if (!authSession || !authReady || !authSession.user.licenseActivated) return;
 
-    const save = () => {
-      const snap = snapshotLocalProgress();
+    const save = async () => {
+      const snap = await snapshotLocalProgressAsync();
       const fp = computeLocalVocabFingerprint(snap);
       if (fp === lastUploadedFingerprintRef.current) return;
       void saveCloudProgress(authSession.token, snap)
@@ -373,7 +376,7 @@ export default function App() {
         const localLastSync = localStorage.getItem('nuonuo_last_cloud_sync');
         if (!localLastSync || new Date(cloudRes.updatedAt).getTime() > new Date(localLastSync).getTime()) {
           console.log('[Sync] 检测到云端有更新，正在同步...');
-          applyProgressToLocal(cloudRes.payload, cloudRes.updatedAt);
+          await applyProgressToLocal(cloudRes.payload, cloudRes.updatedAt);
           
           refreshStatesFromStorage();
           dispatchVocabStatsUpdated();
@@ -394,8 +397,8 @@ export default function App() {
       if (document.visibilityState === 'visible') pull(); // 切回页面时也立即尝试拉取
     };
 
-    const onClosing = () => {
-      const snap = snapshotLocalProgress();
+    const onClosing = async () => {
+      const snap = await snapshotLocalProgressAsync();
       const fp = computeLocalVocabFingerprint(snap);
       if (fp === lastUploadedFingerprintRef.current) return;
       void saveCloudProgress(authSession.token, snap, { isClosing: true });

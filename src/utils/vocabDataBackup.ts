@@ -1,5 +1,6 @@
 import { SCAN_RESUME_STORAGE_KEY } from './scanResumeStorage';
 import { STUDY_CURSOR_STORAGE_KEY } from './studyCursor';
+import { getIdbItem } from './idbStorage';
 
 /** 需要随备份导出的 localStorage 键（词书与进度相关；不含浏览器词表缓存） */
 export const VOCAB_BACKUP_STORAGE_KEYS = [
@@ -29,6 +30,31 @@ export function collectVocabLocalStorageSnapshot(): Record<string, string | null
     try {
       out[key] = localStorage.getItem(key);
     } catch {
+      out[key] = null;
+    }
+  }
+  return out;
+}
+
+/** 异步采集快照：支持从 IndexedDB 读取大容量 Key (vocab_focus_books, vocab_custom_books) */
+export async function collectVocabDataSnapshotAsync(): Promise<Record<string, string | null>> {
+  const out: Record<string, string | null> = {};
+  if (typeof localStorage === 'undefined') return out;
+
+  for (const key of VOCAB_BACKUP_STORAGE_KEYS) {
+    try {
+      // 这里的 Key 如果在 VocabularyModule 中已被迁移至 IDB，则优先从 IDB 读取
+      if (key === 'vocab_focus_books' || key === 'vocab_custom_books') {
+        const idbVal = await getIdbItem(key);
+        if (idbVal !== null) {
+          out[key] = JSON.stringify(idbVal);
+          continue;
+        }
+      }
+      // 兜底或普通 Key 从 localStorage 读取
+      out[key] = localStorage.getItem(key);
+    } catch (e) {
+      console.warn(`[Backup] 采集 Key=${key} 失败:`, e);
       out[key] = null;
     }
   }

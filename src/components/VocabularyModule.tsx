@@ -518,6 +518,16 @@ export default function VocabularyModule({
   const [plan, setPlan] = useState({ time: 30, words: 150, day: 1 });
   const [reviewTargetWordIds, setReviewTargetWordIds] = useState<Set<string> | null>(null);
   const [reviewBatchHint, setReviewBatchHint] = useState<string | null>(null);
+  const [storageRefreshTick, setStorageRefreshTick] = useState(0);
+
+  useEffect(() => {
+    const trigger = () => {
+      console.log('[Sync] VocabularyModule 监听到同步事件，正在刷新本地存储状态...');
+      setStorageRefreshTick(t => t + 1);
+    };
+    window.addEventListener(DAILY_CHALLENGE_EVENT, trigger);
+    return () => window.removeEventListener(DAILY_CHALLENGE_EVENT, trigger);
+  }, []);
 
   useEffect(() => {
     async function loadStorage() {
@@ -562,7 +572,7 @@ export default function VocabularyModule({
       setIsStorageReady(true);
     }
     loadStorage();
-  }, []);
+  }, [storageRefreshTick]);
 
   // Async sync for books to IDB safely avoiding the 5MB limit
   useEffect(() => {
@@ -1057,6 +1067,7 @@ export default function VocabularyModule({
   /** 输入框展示值；真正参与筛选的是 wordListQuery，避免平板中文输入法组字时用拼音字母筛掉全部词 */
   const [wordListSearchDraft, setWordListSearchDraft] = useState('');
   const [wordListQuery, setWordListQuery] = useState('');
+  const [wordListStatusFilter, setWordListStatusFilter] = useState<'all' | 'new' | 'familiar_70' | 'familiar_100'>('all');
   const wordListComposingRef = useRef(false);
   const [wordListPage, setWordListPage] = useState(1);
   const [remoteWordList, setRemoteWordList] = useState<BookWordPreview[] | null>(null);
@@ -1120,6 +1131,7 @@ export default function VocabularyModule({
     if (!showBookWordList) {
       setWordListSearchDraft('');
       setWordListQuery('');
+      setWordListStatusFilter('all');
     }
   }, [showBookWordList]);
 
@@ -1146,18 +1158,49 @@ export default function VocabularyModule({
     return resolveBookWordList(selectedBookForAction);
   }, [selectedBookForAction, remoteWordList, remoteWordListBookId, remoteWordListError]);
 
+  /** id → status 映射：用于内置书远程词表（BookWordPreview 无 status）的熟度状态对齐 */
+  const focusBookStatusMap = useMemo(() => {
+    const book = selectedBookForAction;
+    if (!book?.words?.length) return new Map<string, string>();
+    return new Map(
+      (book.words as { id: string; status?: string }[]).map((w) => [w.id, w.status ?? 'new'])
+    );
+  }, [selectedBookForAction?.id, selectedBookForAction?.words]);
+
+  /** 各熟度分类词数（未被扫过的词默认为 new） */
+  const wordListStatusCounts = useMemo(() => {
+    const counts = { all: 0, new: 0, familiar_70: 0, familiar_100: 0 };
+    if (!bookWordResolved) return counts;
+    for (const w of bookWordResolved.list) {
+      counts.all++;
+      const st = (w as any).status ?? focusBookStatusMap.get(w.id) ?? 'new';
+      if (st === 'familiar_100') counts.familiar_100++;
+      else if (st === 'familiar_70') counts.familiar_70++;
+      else counts.new++;
+    }
+    return counts;
+  }, [bookWordResolved, focusBookStatusMap]);
+
   const bookWordFiltered = useMemo(() => {
     if (!bookWordResolved) return [];
+    let list: typeof bookWordResolved.list = bookWordResolved.list;
+    // 熟度筛选
+    if (wordListStatusFilter !== 'all') {
+      list = list.filter((w) => {
+        const st = (w as any).status ?? focusBookStatusMap.get(w.id) ?? 'new';
+        return st === wordListStatusFilter;
+      });
+    }
     const qNorm = normalizeWordListSearch(wordListQuery);
     const q = qNorm.toLowerCase();
-    if (!q) return bookWordResolved.list;
-    return bookWordResolved.list.filter(
+    if (!q) return list;
+    return list.filter(
       (w) =>
         w.word.toLowerCase().includes(q) ||
         (w.meaning && w.meaning.toLowerCase().includes(q)) ||
         (w.phonetic && w.phonetic.toLowerCase().includes(q))
     );
-  }, [bookWordResolved, wordListQuery]);
+  }, [bookWordResolved, wordListQuery, wordListStatusFilter, focusBookStatusMap]);
 
   const wordListTotalPages = Math.max(1, Math.ceil(bookWordFiltered.length / WORDS_PAGE_SIZE));
 
@@ -1168,7 +1211,7 @@ export default function VocabularyModule({
 
   useEffect(() => {
     setWordListPage(1);
-  }, [wordListQuery, selectedBookForAction?.id]);
+  }, [wordListQuery, selectedBookForAction?.id, wordListStatusFilter]);
 
   useEffect(() => {
     if (wordListPage > wordListTotalPages) setWordListPage(wordListTotalPages);
@@ -2993,6 +3036,31 @@ export default function VocabularyModule({
                       className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-[#fae5d3] text-sm text-[#1f1e1d] placeholder:text-[#c4bfb7] focus:outline-none focus:ring-2 focus:ring-[#b58362]/25"
                     />
                   </div>
+                  {/* 熟度筛选 Tab：有七分熟或全熟记录时显示 */}
+                  {(wordListStatusCounts.familiar_70 > 0 || wordListStatusCounts.familiar_100 > 0) && (
+                    <div className="flex gap-1.5 mt-3 overflow-x-auto pb-0.5 hide-scrollbar">
+                      {(['all', 'new', 'familiar_70', 'familiar_100'] as const).map((key) => {
+                        const labels: Record<typeof key, string> = { all: '全部', new: '生词', familiar_70: '七分熟', familiar_100: '全熟' };
+                        const count = wordListStatusCounts[key];
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => setWordListStatusFilter(key)}
+                            className={cn(
+                              'shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all',
+                              wordListStatusFilter === key
+                                ? 'bg-[#b58362] text-white shadow-sm'
+                                : 'bg-[#FDF6F0] text-[#8c8881] border border-[#fae5d3] hover:bg-white'
+                            )}
+                          >
+                            {labels[key]}
+                            <span className="text-[10px] font-mono opacity-75 tabular-nums">{count}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-2 hide-scrollbar">
@@ -3003,28 +3071,39 @@ export default function VocabularyModule({
                     </div>
                   ) : (
                     <>
-                      {paginatedWordList.map((w) => (
-                        <div
-                          key={w.id}
-                          className="p-3 md:p-4 rounded-xl bg-white border border-black/5 shadow-[0_1px_0_rgba(0,0,0,0.03)]"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <span className="text-base md:text-lg font-serif font-bold text-[#1f1e1d] shrink-0">
-                              {displayWordLowerFirst(w.word)}
-                            </span>
-                            {w.phonetic ? (
-                              <span className="text-[10px] md:text-xs font-mono text-[#b58362]/80 text-right break-all">{w.phonetic}</span>
-                            ) : null}
+                      {paginatedWordList.map((w) => {
+                        const wSt = (w as any).status ?? focusBookStatusMap.get(w.id) ?? null;
+                        return (
+                          <div
+                            key={w.id}
+                            className="p-3 md:p-4 rounded-xl bg-white border border-black/5 shadow-[0_1px_0_rgba(0,0,0,0.03)]"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-center gap-2 min-w-0 shrink-0">
+                                <span className="text-base md:text-lg font-serif font-bold text-[#1f1e1d]">
+                                  {displayWordLowerFirst(w.word)}
+                                </span>
+                                {wSt === 'familiar_100' && (
+                                  <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 leading-none">全熟</span>
+                                )}
+                                {wSt === 'familiar_70' && (
+                                  <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-100 leading-none">七分熟</span>
+                                )}
+                              </div>
+                              {w.phonetic ? (
+                                <span className="text-[10px] md:text-xs font-mono text-[#b58362]/80 text-right break-all">{w.phonetic}</span>
+                              ) : null}
+                            </div>
+                            {w.meaning ? (
+                              <p className="text-xs md:text-sm text-[#5c5852] mt-1.5 leading-relaxed">
+                                {stripDuplicateLeadingPhoneticFromMeaning(w.meaning, w.phonetic)}
+                              </p>
+                            ) : (
+                              <p className="text-[10px] md:text-xs text-[#c4bfb7] mt-1.5 italic">释义与音标可在扫词学习时补全</p>
+                            )}
                           </div>
-                          {w.meaning ? (
-                            <p className="text-xs md:text-sm text-[#5c5852] mt-1.5 leading-relaxed">
-                              {stripDuplicateLeadingPhoneticFromMeaning(w.meaning, w.phonetic)}
-                            </p>
-                          ) : (
-                            <p className="text-[10px] md:text-xs text-[#c4bfb7] mt-1.5 italic">释义与音标可在扫词学习时补全</p>
-                          )}
-                        </div>
-                      ))}
+                        );
+                      })}
                       {!showRemoteWordListSpinner && bookWordFiltered.length === 0 && (
                         <div className="text-center py-16 text-sm text-[#8c8881] px-2 space-y-2">
                           <p>没有匹配的单词，换个关键词试试。</p>
@@ -3069,7 +3148,7 @@ export default function VocabularyModule({
                     <>
                       <p>
                         共收录 <span className="font-bold text-[#1f1e1d]">{bookWordResolved.list.length}</span> 词（可翻页浏览全部）
-                        {wordListQuery.trim() && (
+                        {(wordListQuery.trim() || wordListStatusFilter !== 'all') && (
                           <> · 筛选结果 <span className="font-bold text-[#1f1e1d]">{bookWordFiltered.length}</span> 条</>
                         )}
                       </p>
@@ -3078,7 +3157,7 @@ export default function VocabularyModule({
                     <>
                       全书约 <span className="font-bold text-[#1f1e1d]">{bookWordResolved.totalInBook}</span> 词 · 当前为预览样本{' '}
                       <span className="font-bold text-[#b58362]">{bookWordResolved.list.length}</span> 条
-                      {wordListQuery.trim() && (
+                      {(wordListQuery.trim() || wordListStatusFilter !== 'all') && (
                         <> · 筛选后 {bookWordFiltered.length} 条</>
                       )}
                     </>

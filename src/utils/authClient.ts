@@ -1,5 +1,6 @@
-import { collectVocabLocalStorageSnapshot } from './vocabDataBackup';
+import { collectVocabLocalStorageSnapshot, collectVocabDataSnapshotAsync } from './vocabDataBackup';
 import { supabase } from './supabaseClient';
+import { setIdbItem } from './idbStorage';
 
 export interface AuthSession {
   token: string;
@@ -272,36 +273,55 @@ export function snapshotLocalProgress(): Record<string, string | null> {
   return collectVocabLocalStorageSnapshot();
 }
 
-export function applyProgressToLocal(remotePayload: Record<string, string | null>, serverTs?: string) {
+export async function snapshotLocalProgressAsync(): Promise<Record<string, string | null>> {
+  return collectVocabDataSnapshotAsync();
+}
+
+export async function applyProgressToLocal(remotePayload: Record<string, string | null>, serverTs?: string) {
   for (const [k, remoteVal] of Object.entries(remotePayload)) {
     if (remoteVal === null) {
       localStorage.removeItem(k);
       continue;
     }
 
-    const localVal = localStorage.getItem(k);
-    if (!localVal) {
+    const localVal = (k === 'vocab_focus_books' || k === 'vocab_custom_books') 
+      ? null // IDB 托管的键，合并逻辑稍微不同：始终优先应用远程或合并。且我们不在此处读 IDB，只决定是否写。
+      : localStorage.getItem(k);
+
+    if (!localVal && k !== 'vocab_focus_books' && k !== 'vocab_custom_books') {
       localStorage.setItem(k, remoteVal);
       continue;
     }
 
     if (k === 'vocab_focus_books' || k === 'vocab_collection_books' || k === 'vocab_custom_books') {
       try {
-        const localArr = JSON.parse(localVal);
         const remoteArr = JSON.parse(remoteVal);
-        if (Array.isArray(localArr) && Array.isArray(remoteArr)) {
-          const merged = [...remoteArr];
-          const remoteIds = new Set(remoteArr.map((b: any) => b.id));
-          for (const lb of localArr) {
-            if (lb?.id && !remoteIds.has(lb.id)) merged.push(lb);
+        if (Array.isArray(remoteArr)) {
+          // 对于 focus/custom 这种可能已被迁移至 IDB 的大 Key
+          if (k === 'vocab_focus_books' || k === 'vocab_custom_books') {
+            await setIdbItem(k, remoteArr);
+            localStorage.removeItem(k); // 确保 localStorage 为空，保持 IDB 迁移态
+            continue;
           }
-          localStorage.setItem(k, JSON.stringify(merged));
-          continue;
+
+          // 处理 collection_books (目前仍在 localStorage)
+          const localArr = localVal ? JSON.parse(localVal) : [];
+          if (Array.isArray(localArr)) {
+            const merged = [...remoteArr];
+            const remoteIds = new Set(remoteArr.map((b: any) => b.id));
+            for (const lb of localArr) {
+              if (lb?.id && !remoteIds.has(lb.id)) merged.push(lb);
+            }
+            localStorage.setItem(k, JSON.stringify(merged));
+            continue;
+          }
         }
-      } catch {}
+      } catch (e) {
+        console.error(`[Sync] 合并 ${k} 失败:`, e);
+      }
     } else if (k === 'vocab_stats') {
       try {
-        const localObj = JSON.parse(localVal);
+        const localObj = localVal ? JSON.parse(localVal) : { mastered_100: 0, history: {} };
         const remoteObj = JSON.parse(remoteVal);
         const merged = { ...localObj, ...remoteObj };
         for (const key in merged) {
@@ -335,7 +355,7 @@ export function applyProgressToLocal(remotePayload: Record<string, string | null
       k === 'vocab_cycle_review_session'
     ) {
       try {
-        const localObj = JSON.parse(localVal);
+        const localObj = localVal ? JSON.parse(localVal) : {};
         const remoteObj = JSON.parse(remoteVal);
         const merged = { ...localObj, ...remoteObj };
         localStorage.setItem(k, JSON.stringify(merged));
