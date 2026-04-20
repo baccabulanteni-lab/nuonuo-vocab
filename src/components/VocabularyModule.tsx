@@ -1159,14 +1159,16 @@ export default function VocabularyModule({
     return resolveBookWordList(selectedBookForAction);
   }, [selectedBookForAction, remoteWordList, remoteWordListBookId, remoteWordListError]);
 
-  /** id → status 映射：用于内置书远程词表（BookWordPreview 无 status）的熟度状态对齐 */
+  /** 对齐当前选定词书的学习状态：从 focusBooks 数组中找到对应 ID 的书籍记录，以支持内置书的熟度显示 */
   const focusBookStatusMap = useMemo(() => {
-    const book = selectedBookForAction;
-    if (!book?.words?.length) return new Map<string, string>();
+    const bookId = selectedBookForAction?.id;
+    if (!bookId) return new Map<string, string>();
+    const studyRecord = (focusBooks as any[]).find(b => b.id === bookId);
+    if (!studyRecord?.words?.length) return new Map<string, string>();
     return new Map(
-      (book.words as { id: string; status?: string }[]).map((w) => [w.id, w.status ?? 'new'])
+      (studyRecord.words as { id: string; status?: string }[]).map((w) => [w.id, w.status ?? 'new'])
     );
-  }, [selectedBookForAction?.id, selectedBookForAction?.words]);
+  }, [selectedBookForAction?.id, focusBooks]);
 
   /** 各熟度分类词数（未被扫过的词默认为 new） */
   const wordListStatusCounts = useMemo(() => {
@@ -3037,8 +3039,8 @@ export default function VocabularyModule({
                       className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-[#fae5d3] text-sm text-[#1f1e1d] placeholder:text-[#c4bfb7] focus:outline-none focus:ring-2 focus:ring-[#b58362]/25"
                     />
                   </div>
-                  {/* 熟度筛选 Tab：有七分熟或全熟记录时显示 */}
-                  {(wordListStatusCounts.familiar_70 > 0 || wordListStatusCounts.familiar_100 > 0) && (
+                  {/* 熟度筛选 Tab */}
+                  {bookWordResolved && (
                     <div className="flex gap-1.5 mt-3 overflow-x-auto pb-0.5 hide-scrollbar">
                       {(['all', 'new', 'familiar_70', 'familiar_100'] as const).map((key) => {
                         const labels: Record<typeof key, string> = { all: '全部', new: '生词', familiar_70: '七分熟', familiar_100: '全熟' };
