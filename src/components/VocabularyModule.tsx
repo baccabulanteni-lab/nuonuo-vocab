@@ -39,6 +39,7 @@ import {
   findAnyCompletedBookIdOnDate,
   getPrimaryFocusBookId,
   isPrimaryFocusDailyPlanDoneToday,
+  DAILY_CHALLENGE_EVENT,
 } from '../utils/dailyChallenge';
 import { getBeijingDateKey, getBeijingYesterdayKey } from '../utils/beijingDate';
 import { 
